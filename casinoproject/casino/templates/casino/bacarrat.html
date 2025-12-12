@@ -3,5 +3,25 @@
 {% block h1 %}Baccarat{% endblock h1 %}
 {% block content %}
 {% load static %}
-    
+    <div class="game-container">
+        <div class="player-side">
+            <h2>あなた</h2>
+            <div class="cards">
+                {% for card in player_cards %}
+                    <div class="card">{{ card.suit }} {{ card.rank }}</div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="vs">VS</div>
+        
+        <div class="banker-side">
+            <h2>バンカー</h2>
+            <div class="cards">
+                {% for card in banker_cards %}
+                    <div class="card">{{ card.suit }} {{ card.rank }}</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
 {% endblock content %}
