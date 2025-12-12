@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Casino{% endblock title %}
+{% block h1 %}Card Casino{% endblock h1 %}
+{% block content %}
+{% load static %}
+    <div class="btn">
+        <a href="{% url 'bacarrat' %}" class="bacarrat-button">Bacarrat</a>
+    </div>
+{% endblock content %}

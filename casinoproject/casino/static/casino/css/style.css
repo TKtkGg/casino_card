@@ -1,0 +1,24 @@
+.title {
+        font-size: 48px;
+        color: #4CAF50;
+        text-align: center;
+        margin-top: 50px;
+}
+
+.btn{
+    display: flex;
+    justify-content: center;
+}
+
+.bacarrat-button {
+    padding: 15px 30px;
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    background-color: rgba(101, 67, 33, 0.7);
+    text-decoration: none;
+    text-align: center;
+    border-radius: 8px;
+    margin-top: 30px;
+    width: 300px;
+}
