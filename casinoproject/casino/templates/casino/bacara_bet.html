@@ -3,9 +3,36 @@
 {% block h1 %}Baccarat{% endblock h1 %}
 
 {% block content %}
+{% load custom_filters %}
+{% load static %}
+
 <div class="bet-content">
+    <h3 class="line-explain">プレイヤー：<span style="color: blue;">●</span> バンカー：<span style="color: red;">○</span> 引き分け：<span style="color: green;">／</span></h3>
     <h2>いくら賭けますか？</h2>
     <h3>chip：{{ money }}</h3>
+    <div class="grid-container" style="grid-template-rows: repeat({{ max_length_value }}, 60px);">
+      {% for i in "0123456" %}  <!-- 外側：列 -->
+        {% for j in max_length %}  <!-- 内側：行 -->
+          <div class="grid-item">
+            {% if forloop.parentloop.counter0 < histList|length %}
+              {% with column=histList|index:forloop.parentloop.counter0 %}
+                {% if column and forloop.counter0 < column|length %}
+                  {% with cell=column|index:forloop.counter0 %}
+                    {% if cell == 'p' %}
+                      <span style="color: blue;">●</span>
+                    {% elif cell == 'b' %}
+                      <span style="color: red;">○</span>
+                    {% elif cell == 'd' %}
+                      <span style="color: green;">／</span>
+                    {% endif %}
+                  {% endwith %}
+                {% endif %}
+              {% endwith %}
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
     <form method="post" class="bet-form">
         {% csrf_token %}
         <label>

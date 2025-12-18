@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from .trump import TRUMP
 from accounts.models import CustomUser
+from .models import GameHistory
 
 # Create your views here.
 @login_required
@@ -51,9 +52,35 @@ def should_draw_third_card(player_score, banker_score, player_third_value=None):
     
     return player_draws, banker_draws
 
+def result(player_score, banker_score, player, bet_amount, bet_type):
+    # 勝敗判定
+    if player_score > banker_score:
+        winner = 'player'
+        player.money += bet_amount if bet_type == 'player' else -bet_amount
+    elif banker_score > player_score:
+        winner = 'banker'
+        player.money += bet_amount if bet_type == 'banker' else -bet_amount
+    else:
+        winner = 'draw'
+        if bet_type == 'draw':
+            player.money += bet_amount * 8  # 引き分けの配当
+        else:
+            player.money -= bet_amount
+    player.save()
+
+    GameHistory.objects.create(
+        user=player,
+        winner=winner,
+        player_score=player_score,
+        banker_score=banker_score
+    )
+
+    return winner
+
 @login_required
 def bacarrat(request):
     player = request.user
+
     if request.method == 'POST':
         # 3枚目を引く処理
         action = request.POST.get('action')
@@ -84,23 +111,8 @@ def bacarrat(request):
             bet_amount = request.session.get('bet_amount', 0)
             bet_type = request.session.get('bet_type')
             
-            # 勝敗判定
-            if player_score > banker_score:
-                winner = 'player'
-                player.money += bet_amount if bet_type == 'player' else -bet_amount
-            elif banker_score > player_score:
-                winner = 'banker'
-                player.money += bet_amount if bet_type == 'banker' else -bet_amount
-            else:
-                winner = 'draw'
-                if bet_type == 'draw':
-                    player.money += bet_amount * 8  # 引き分けの配当
-                else:
-                    player.money -= bet_amount
-            player.save()
+            winner = result(player_score, banker_score, player, bet_amount, bet_type)
             
-            
-
             return render(request, 'casino/bacarrat.html', {
                 'player_cards': player_cards,
                 'banker_cards': banker_cards,
@@ -141,22 +153,7 @@ def bacarrat(request):
             'need_third_card': True,
         })
     else:
-        # 3枚目を引かない場合は即決着
-        if player_score > banker_score:
-            winner = 'player'
-            player.money += bet_amount if bet_type == 'player' else -bet_amount
-        elif banker_score > player_score:
-            winner = 'banker'
-            player.money += bet_amount if bet_type == 'banker' else -bet_amount
-        else:
-            winner = 'draw'
-            if bet_type == 'draw':
-                player.money += bet_amount * 8  # 引き分けの配当
-            else:
-                player.money -= bet_amount
-        player.save()
-        
-        
+        winner = result(player_score, banker_score, player, bet_amount, bet_type)
 
         return render(request, 'casino/bacarrat.html', {
             'player_cards': player_cards,
@@ -172,6 +169,67 @@ def bacarrat(request):
 @login_required
 def bacara_bet(request):
     player = request.user
+    
+    # セッションから罫線の状態を取得（なければ初期化）
+    histList = request.session.get('histList', [[]])
+    last_winner = request.session.get('last_winner', None)
+    last_processed_id = request.session.get('last_processed_id', None)
+    
+    # 最新の1件だけ取得
+    latest_history = GameHistory.objects.filter(user=player).order_by('-played_at').first()
+    
+    # 最新の履歴があり、かつ未処理の場合のみ処理
+    if latest_history and latest_history.id != last_processed_id:
+        if latest_history.winner == 'player':
+            # 直前の勝者（引き分け除く）がbankerなら新しい列へ
+            if last_winner == 'b':
+                newLine = ["p"]
+                histList.append(newLine)
+            else:
+                if not histList or not histList[-1]:
+                    histList = [["p"]]
+                else:
+                    histList[-1].append('p')
+            last_winner = 'p'
+        elif latest_history.winner == 'banker':
+            # 直前の勝者（引き分け除く）がplayerなら新しい列へ
+            if last_winner == 'p':
+                newLine = ['b']
+                histList.append(newLine)
+            else:
+                if not histList or not histList[-1]:
+                    histList = [['b']]
+                else:
+                    histList[-1].append('b')
+            last_winner = 'b'
+        else:
+            # 引き分けは現在の列に追加、last_winnerは更新しない
+            if not histList or not histList[-1]:
+                histList = [['d']]
+            else:
+                histList[-1].append('d')
+        
+        # 処理済みIDを更新
+        last_processed_id = latest_history.id
+    
+    # 空のリストを削除
+    if histList and not histList[0]:
+        histList = histList[1:]
+    
+    # 7列を超えたら、一番古い列（先頭）を削除
+    while len(histList) > 7:
+        histList.pop(0)
+    
+    # セッションに保存
+    request.session['histList'] = histList
+    request.session['last_winner'] = last_winner
+    request.session['last_processed_id'] = last_processed_id
+
+    max_length = max(len(column) for column in histList) if histList else 5
+    max_length = max(max_length, 5)
+    max_length_value = max_length  # 数値を保持
+    max_length = range(max_length)
+
     if request.method == 'POST':
         # ベット金額と種類を取得
         bet_amount = int(request.POST.get('bet_amount', 0))
@@ -182,4 +240,9 @@ def bacara_bet(request):
         request.session['bet_type'] = bet_type
         
         return redirect('bacarrat')
-    return render(request, 'casino/bacara_bet.html', {'money': player.money})
+    return render(request, 'casino/bacara_bet.html', {
+        'money': player.money, 
+        'histList': histList, 
+        'max_length': max_length,
+        'max_length_value': max_length_value
+    })

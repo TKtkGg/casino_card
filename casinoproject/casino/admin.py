@@ -1,4 +1,4 @@
 from django.contrib import admin
+from .models import GameHistory
 
-# Playerモデルは削除されました
-# CustomUserはaccounts/admin.pyで登録されています
+admin.site.register(GameHistory)
