@@ -153,7 +153,7 @@ class Blackjack:
             return render(request, 'casino/blackjack.html', context)
         
         # 新しいゲームの開始：デバッグ用で必ずプレイヤーに10を2枚配る
-        tens = [card for card in TRUMP if card['rank'] == 10]
+        tens = [card for card in TRUMP if card['rank'] == 1]
         player_cards = [tens[0], tens[1]]
         rest = [card for card in TRUMP if card not in player_cards]
         dealer_cards = random.sample(rest, 2)
@@ -300,11 +300,15 @@ class Blackjack:
             if 0 <= hand_index < len(split_hands):
                 hand = split_hands[hand_index]
                 if hand.get('status') == 'playing':
+                    # Aのスプリットは1回だけヒット可能
                     if action == 'split_hit':
                         new_card = self.draw_unique_card(used_cards)
                         hand['cards'].append(new_card)
                         hand['score'] = self.calculate_score(hand['cards'])
-                        if hand['score'] > 21:
+                        # Aのスプリットなら1回ヒットしたら自動でSTANDING
+                        if hand['cards'][0]['rank'] == 1:
+                            hand['status'] = 'standing'
+                        elif hand['score'] > 21:
                             hand['status'] = 'bust'
                         elif hand['score'] == 21:
                             hand['status'] = 'standing'
